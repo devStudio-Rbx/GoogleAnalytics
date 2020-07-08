@@ -24,7 +24,7 @@ local UserAgentMasks = {
 
 --// Variables
 
-API._Debug = false -- RunService:IsStudio()
+API._Debug = RunService:IsStudio()
 API.CollectEndpoint = string.format("http://www.google-analytics.com%s/collect", API._Debug and "/debug" or "")
 API.BatchEndpoint = string.format("http://www.google-analytics.com%s/batch", API._Debug and "/debug" or "")
 
