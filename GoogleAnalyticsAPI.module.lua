@@ -9,6 +9,7 @@ local LocalizationService = game:GetService("LocalizationService")
 local Overture = require(ReplicatedStorage:WaitForChild("Overture"))
 
 local GetDeviceType = Overture:GetRemoteFunction("GA-GetDeviceType")
+local GetViewportSize = Overture:GetRemoteFunction("GA-GetViewportSize")
 
 local API = {}
 API.__index = API
@@ -31,6 +32,10 @@ API.BatchEndpoint = string.format("http://www.google-analytics.com%s/batch", API
 --// Functions
 
 function GetDeviceType.OnServerInvoke()
+	--/ Prevents remote queue overflow
+end
+
+function GetViewportSize.OnServerInvoke()
 	--/ Prevents remote queue overflow
 end
 
@@ -130,6 +135,7 @@ function API:GetIdentificationData(Player)
 		["cid"] = string.sub(HttpService:GenerateGUID(), 2, -2),
 		["ua"] = string.format("Roblox/%s Lua/%s %s", RobloxVersion, LuaVersion, GetUserAgent(Player)),
 		
+		["vp"] = GetViewportSize:InvokeClient(Player),
 		["cs"] = Player.FollowUserId > 0 and "Followed" or nil,
 		["ul"] = LocalizationService:GetTranslatorForPlayerAsync(Player).LocaleId,
 		["geoid"] = GetPlayerLocalization(Player),
@@ -175,6 +181,32 @@ function API:ReportEvent(Player, Category, Action, Label, Value, Overrides)
 	}, Overrides))
 end
 
+function API:EnableAutoPlayerReporting()
+	local function LoadPlayer(...)
+		local Args = {...}
+		
+		coroutine.wrap(function(Player)
+			self:ReportEvent(Player, nil, "Joining", game.PlaceId, nil, {["sc"] = "start"})
+		end)(Args[#Args])
+	end
+	
+	PlayerService.PlayerAdded:Connect(LoadPlayer)
+	table.foreach(PlayerService:GetPlayers(), LoadPlayer)
+	
+	PlayerService.PlayerRemoving:Connect(function(Player)
+		self:ReportEvent(Player, nil, "Leaving", game.PlaceId, nil, {["sc"] = "end"})
+		self:FlushPlayerData(Player)
+	end)
+	
+	coroutine.wrap(function()
+		while wait(60 * 5) do
+			for _, Player in next, PlayerService:GetPlayers() do
+				self:ReportEvent(Player, nil, "Heartbeat")
+			end
+		end
+	end)()
+end
+
 function API.new(MeasurementId, Overrides)
 	local self = setmetatable({}, API)
 	
@@ -186,23 +218,6 @@ function API.new(MeasurementId, Overrides)
 		
 		["av"] = game.PlaceVersion,
 	}, Overrides)
-	
-	PlayerService.PlayerAdded:Connect(function(Player)
-		self:ReportEvent(Player, nil, "Joining", game.PlaceId, nil, {["sc"] = "start"})
-	end)
-	
-	PlayerService.PlayerRemoving:Connect(function(Player)
-		self:ReportEvent(Player, nil, "Leaving", game.PlaceId, nil, {["sc"] = "end"})
-		self:FlushPlayerData(Player)
-	end)
-	
-	coroutine.wrap(function()
-		while wait(30) do
-			for _, Player in next, PlayerService:GetPlayers() do
-				self:ReportEvent(Player, nil, "Heartbeat")
-			end
-		end
-	end)()
 	
 	return self
 end
