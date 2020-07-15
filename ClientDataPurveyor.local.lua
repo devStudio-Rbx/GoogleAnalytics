@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Overture = require(ReplicatedStorage:WaitForChild("Overture"))
 
 local GetDeviceType = Overture:GetRemoteFunction("GA-GetDeviceType")
+local GetViewportSize = Overture:GetRemoteFunction("GA-GetViewportSize")
 
 --// Functions
 
@@ -24,4 +25,10 @@ function GetDeviceType.OnClientInvoke()
 	else
 		return "Desktop"
 	end
+end
+
+function GetViewportSize.OnClientInvoke()
+	local Viewport = workspace.CurrentCamera.ViewportSize
+	
+	return string.format("%ix%i", Viewport.X, Viewport.Y)
 end
